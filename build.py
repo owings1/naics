@@ -29,15 +29,21 @@ def rows() -> Iterator[dict[str, str]]:
             yield dict(zip(columns, values))
 
 def entries(row: dict[str, str]) -> Iterator[dict[str, Any]]:
+    seq = int(row['seq'])
+    code_raw = row['code']
+    title = row['title'].rstrip('T')
     description = row['description']
     if description == 'NULL':
         description = None
-    for code in row['code'].split('-'):
+    codes = list(map(int, code_raw.split('-')))
+    if len(codes) == 2:
+        codes = range(codes[0], codes[1] + 1)
+    for code in codes:
         yield dict(
-            seq=int(row['seq']),
-            code=int(code),
-            code_raw=row['code'],
-            title=row['title'].rstrip('T'),
+            seq=seq,
+            code=code,
+            code_raw=code_raw,
+            title=title,
             description=description)
 
 def build() -> None:
