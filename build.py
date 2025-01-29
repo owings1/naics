@@ -5,7 +5,7 @@ import json
 from argparse import ArgumentParser
 from itertools import chain
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterable, Iterator
 
 dirs = dict(
     base=Path(__file__).parent,
@@ -38,12 +38,37 @@ def entries(row: dict[str, str]) -> Iterator[dict[str, Any]]:
             title=title,
             description=description)
 
-def build() -> None:
-    dirs['build'].mkdir(parents=True, exist_ok=True)
+def mptt(data: Iterable[dict[str, Any]]) -> None:
+    data = sorted(data, key=lambda entry: str(entry['code']))
+    path = []
+    n = 1
+    for entry in data:
+        while path and not str(entry['code']).startswith(str(path[-1]['code'])):
+            path.pop()['right'] = n
+            n += 1
+        entry['left'] = n
+        entry['depth'] = len(path)
+        if path:
+            entry['parent'] = path[-1]['code']
+        else:
+            entry['parent'] = None
+        path.append(entry)
+        n += 1
+    while path:
+        path.pop()['right'] = n
+        n += 1
+
+def extract() -> list[dict[str, Any]]:
     with files['csv'].open() as file:
         reader = csv.DictReader(file, columns)
         next(reader)
         data = list(chain.from_iterable(map(entries, reader)))
+    mptt(data)
+    return data
+
+def build() -> None:
+    dirs['build'].mkdir(parents=True, exist_ok=True)
+    data = extract()
     with files['json'].open('w') as file:
         json.dump(data, file, indent=2)
     with files['min'].open('w') as file:
